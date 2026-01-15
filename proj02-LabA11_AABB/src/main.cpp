@@ -33,6 +33,8 @@ GLuint phongShader;
 // added for LabA07
 GLuint texblinnShader;
 
+bool wireframeMode = false;
+
 // Initialize shader
 GLuint initShader(std::string pathVert, std::string pathFrag) 
 {
@@ -133,7 +135,7 @@ int main()
     }
 
     // create a GLFW window
-    window = glfwCreateWindow(800, 800, "Hello OpenGL 11", NULL, NULL);
+    window = glfwCreateWindow(1920, 1080, "Hello OpenGL 11", NULL, NULL);
     glfwMakeContextCurrent(window);
 
     // register the key event callback function
@@ -381,6 +383,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             nextMatView = matView * mat;
             nextViewPos.z -= transStep;
         }
+
+        // *Wireframe toggle using the G Key* //
+        else
+            if (GLFW_KEY_G == key)
+            {
+                wireframeMode = !wireframeMode;
+
+                if (wireframeMode)
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);   // Wireframe
+                else
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);   // Normal fill
+            }
+    
 
 
         // check collision detection
