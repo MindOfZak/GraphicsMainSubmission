@@ -18,20 +18,29 @@ static Shader shader;
 glm::mat4 matModelRoot = glm::mat4(1.0);
 glm::mat4 matView = glm::mat4(1.0);
 glm::mat4 matProj = glm::ortho(-2.0f,2.0f,-2.0f,2.0f, -2.0f,2.0f);
+glm::mat4 floorModel(1.0f);
 
 glm::vec3 lightPos = glm::vec3(5.0f, 5.0f, 10.0f);
 glm::vec3 viewPos_default = glm::vec3(0.0f, 2.0f, 6.0f);
 glm::vec3 viewPos = viewPos_default;
 
-// We are using mesh list instead of scenegraph to demo our picking and collision detection
+// We are using mesh list instead of scene graph to demo our picking and collision detection
 std::vector< std::shared_ptr <Mesh> > meshList;
 std::vector< glm::mat4 > meshMatList;
 
-// GLuint flatShader;
+
+
+GLuint flatShader;
 GLuint blinnShader;
 GLuint phongShader;
-// added for LabA07
 GLuint texblinnShader;
+
+//Grid floor data
+GLuint floorVAO = 0, floorVBO = 0, floorEBO = 0;
+GLuint floorShader = 0;
+GLsizei floorIndexCount = 0;
+
+
 
 bool wireframeMode = false;
 
@@ -45,6 +54,95 @@ GLuint initShader(std::string pathVert, std::string pathFrag)
 
     return shader.program;
 }
+
+static void CreateFloorGrid(int vertsPerSide, float spacing, float yLevel)
+{
+    // vertsPerSide e.g. 41, spacing e.g. 0.25, yLevel e.g. 0.0
+    std::vector<glm::vec3> positions;
+    std::vector<unsigned int> indices;
+
+    positions.reserve(vertsPerSide * vertsPerSide);
+
+    // Center the grid around (0, yLevel, 0)
+    float half = (vertsPerSide - 1) * spacing * 0.5f;
+
+    for (int z = 0; z < vertsPerSide; z++)
+    {
+        for (int x = 0; x < vertsPerSide; x++)
+        {
+            float px = (x * spacing) - half;
+            float pz = (z * spacing) - half;
+            positions.emplace_back(px, yLevel, pz);
+        }
+    }
+
+    // Two triangles per quad
+    for (int z = 0; z < vertsPerSide - 1; z++)
+    {
+        for (int x = 0; x < vertsPerSide - 1; x++)
+        {
+            int i0 = z * vertsPerSide + x;
+            int i1 = i0 + 1;
+            int i2 = i0 + vertsPerSide;
+            int i3 = i2 + 1;
+
+            // Triangle 1: i0, i2, i1
+            indices.push_back(i0);
+            indices.push_back(i2);
+            indices.push_back(i1);
+
+            // Triangle 2: i1, i2, i3
+            indices.push_back(i1);
+            indices.push_back(i2);
+            indices.push_back(i3);
+        }
+    }
+
+    floorIndexCount = (GLsizei)indices.size();
+
+    // Upload to GPU
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
+    glGenBuffers(1, &floorEBO);
+
+    glBindVertexArray(floorVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), positions.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floorEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+    // layout(location = 0) vec3 aPos
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+
+    glBindVertexArray(0);
+
+    floorModel = glm::mat4(1.0f);
+}
+
+static void DrawFloor(const glm::mat4& view, const glm::mat4& proj, bool wireframe)
+{
+    glUseProgram(floorShader);
+
+    GLint modelLoc = glGetUniformLocation(floorShader, "model");
+    GLint viewLoc = glGetUniformLocation(floorShader, "view");
+    GLint projLoc = glGetUniformLocation(floorShader, "proj");
+    GLint colLoc = glGetUniformLocation(floorShader, "floorColor");
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &floorModel[0][0]);
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, &proj[0][0]);
+
+    // Neutral Unreal-ish grey. Change these if you want.
+    glUniform3f(colLoc, 0.18f, 0.18f, 0.20f);
+
+    glBindVertexArray(floorVAO);
+    glDrawElements(GL_TRIANGLES, floorIndexCount, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
 
 void setLightPosition(glm::vec3 lightPos)
 {
@@ -152,6 +250,8 @@ int main()
         return -1;
     }
 
+    CreateFloorGrid(41, 0.25f, 0.0f);
+
     phongShader = initShader( "shaders/blinn.vert", "shaders/phong.frag");
     setLightPosition(lightPos);
     setViewPosition(viewPos);
@@ -162,6 +262,7 @@ int main()
     texblinnShader = initShader("shaders/texblinn.vert", "shaders/texblinn.frag");
     setLightPosition(lightPos);
     setViewPosition(viewPos);
+    floorShader = initShader("shaders/floor.vert", "shaders/floor.frag");
 
     // set the eye at (0, 0, 5), looking at the centre of the world
     // try to change the eye position
@@ -198,29 +299,7 @@ int main()
     bunny->initSpatial(true, mat);
   
 
-    //----------------------------------------------------
-    // Nodes
-    // std::shared_ptr<Node> scene = std::make_shared<Node>();
-    // std::shared_ptr<Node> teapotNode = std::make_shared<Node>();
-    // std::shared_ptr<Node> cubeNode = std::make_shared<Node>();
-    // std::shared_ptr<Node> bunnyNode = std::make_shared<Node>();
-    
-    //----------------------------------------------------
-    // Build the tree
-    //teapotNode->addMesh(teapot);
-    //cubeNode->addMesh(cube, glm::mat4(1.0), glm::mat4(1.0), glm::scale(glm::vec3(2.0f, 0.25f, 1.5f)));
-    //bunnyNode->addMesh(bunny, glm::mat4(1.0), glm::mat4(1.0), glm::scale(glm::vec3(0.005f, 0.005f, 0.005f)));
-
-
-    // cubeNode->addChild(teapotNode, glm::translate(glm::vec3(-1.5f, 0.5f, 0.0f)));
-    // cubeNode->addChild(bunnyNode, glm::translate(glm::vec3(1.0f, 1.5f, 0.0f)));
-    // cubeNode->addChild(teapotNode, glm::translate(glm::vec3(0.0f, 1.0f, 0.0f)), glm::rotate(glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-    
-    //----------------------------------------------------
-    // Add the tree to the world space
-    //scene->addChild(cubeNode);
-    //scene->addChild(bunnyNode);
-    // scene->addChild(cubeNode, glm::translate(glm::vec3(1.0f, 0.0f, 0.0f)), glm::rotate(glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+  
 
     // setting the background colour, you can change the value
     glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
@@ -235,13 +314,13 @@ int main()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //scene->draw(matModelRoot, matView, matProj);
-        // bunny->draw(glm::scale(glm::vec3(0.005f, 0.005f, 0.005f)), matView, matProj);
+        
 
 
         for (int i = 0; i < meshList.size(); i++ ) {
             std::shared_ptr<Mesh> pMesh = meshList[i];
             pMesh->draw(matModelRoot * meshMatList[i], matView, matProj);
+            DrawFloor(matView, matProj, wireframeMode);
         }
 
         glfwSwapBuffers(window);
