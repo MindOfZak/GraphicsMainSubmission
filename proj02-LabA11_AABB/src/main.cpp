@@ -223,7 +223,7 @@ int main()
     // scene->addChild(cubeNode, glm::translate(glm::vec3(1.0f, 0.0f, 0.0f)), glm::rotate(glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
 
     // setting the background colour, you can change the value
-    glClearColor(0.25f, 0.5f, 0.75f, 1.0f);
+    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
     
     glEnable(GL_DEPTH_TEST);
     //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
