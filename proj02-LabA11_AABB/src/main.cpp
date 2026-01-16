@@ -44,6 +44,10 @@ GLsizei floorIndexCount = 0;
 
 bool wireframeMode = false;
 
+int pickedMeshIndex = -1; // which mesh i have clicked (selected)
+float moveSpeed = 2.0f; // units per second
+float lastTime = 0.0f; // for my delta time timing
+
 // Initialize shader
 GLuint initShader(std::string pathVert, std::string pathFrag) 
 {
@@ -195,28 +199,40 @@ void mouse_button_callback(GLFWwindow *win, int button, int action, int mods)
         double mx, my;
         glfwGetCursorPos(win, &mx, &my);
 
-        std::cout << "Mouse click at: (" << mx <<", " << my << ")" << std::endl;
-
         int w, h;
         glfwGetWindowSize(win, &w, &h);
 
         glm::vec3 rayOrig = viewPos;
         glm::vec3 rayDir = screenPosToRay((int)mx, (int)my, w, h, matProj, matView);
 
-        Ray ray{rayOrig, rayDir};
+        Ray ray{ rayOrig, rayDir };
 
-        
-        for (std::shared_ptr<Mesh> pMesh : meshList)
+        pickedMeshIndex = -1;
+        float bestT = 1e30f;
+
+        // Find closest hit
+        for (int i = 0; i < (int)meshList.size(); i++)
         {
             HitInfo hit;
-            if (pMesh->pSpatial->Raycast(ray, hit)) {
-                std::cout << "Picked triangle index: " << hit.triIndex << ", t=" << hit.t << std::endl;
-                pMesh->setPicked(true);
-            } else {
-                pMesh->setPicked(false);
-                std::cout << "No objects picked" << std::endl;
+            if (meshList[i]->pSpatial->Raycast(ray, hit))
+            {
+                if (hit.t < bestT)
+                {
+                    bestT = hit.t;
+                    pickedMeshIndex = i;
+                }
             }
         }
+        // Update highlight flags
+        for (int i = 0; i < (int)meshList.size(); i++)
+        {
+            meshList[i]->setPicked(i == pickedMeshIndex);
+        }
+
+        if (pickedMeshIndex >= 0)
+            std::cout << "Picked mesh index: " << pickedMeshIndex << std::endl;
+        else
+            std::cout << "No objects picked" << std::endl;
     }
 }
 
@@ -233,7 +249,7 @@ int main()
     }
 
     // create a GLFW window
-    window = glfwCreateWindow(1920, 1080, "Hello OpenGL 11", NULL, NULL);
+    window = glfwCreateWindow(2560, 1440, "Hello OpenGL 11", NULL, NULL);
     glfwMakeContextCurrent(window);
 
     // register the key event callback function
@@ -311,20 +327,46 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+        // --- delta time ---
+        float now = (float)glfwGetTime();
+        float deltaTime = now - lastTime;
+        lastTime = now;
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // --- move picked object with I/J/K/L ---
+        if (pickedMeshIndex >= 0)
+        {
+            glm::vec3 delta(0.0f);
+
+            if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) delta.z -= moveSpeed * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) delta.z += moveSpeed * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) delta.x -= moveSpeed * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) delta.x += moveSpeed * deltaTime;
+
+            if (glm::length(delta) > 0.0f)
+            {
+                meshMatList[pickedMeshIndex] = glm::translate(meshMatList[pickedMeshIndex], delta);
+
+                // keep collision/picking correct by updating the spatial structure
+                meshList[pickedMeshIndex]->initSpatial(true, meshMatList[pickedMeshIndex]);
+
+            }
+        }
 
         
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        DrawFloor(matView, matProj, wireframeMode);
 
-
-        for (int i = 0; i < meshList.size(); i++ ) {
-            std::shared_ptr<Mesh> pMesh = meshList[i];
-            pMesh->draw(matModelRoot * meshMatList[i], matView, matProj);
-            DrawFloor(matView, matProj, wireframeMode);
+        for (int i = 0; i < (int)meshList.size(); i++)
+        {
+            meshList[i]->draw(matModelRoot * meshMatList[i], matView, matProj);
         }
 
         glfwSwapBuffers(window);
     }
+    
+    
+
+
 
     glfwTerminate();
 
