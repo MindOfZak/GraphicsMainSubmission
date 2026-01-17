@@ -204,7 +204,7 @@ void mouse_button_callback(GLFWwindow *win, int button, int action, int mods)
         int w, h;
         glfwGetWindowSize(win, &w, &h);
 
-        glm::vec3 rayOrig = viewPos;
+        glm::vec3 rayOrig = glm::vec3(glm::inverse(matView)[3]); // my camera world position
         glm::vec3 rayDir = screenPosToRay((int)mx, (int)my, w, h, matProj, matView);
 
         Ray ray{ rayOrig, rayDir };
@@ -251,7 +251,7 @@ int main()
     }
 
     // create a GLFW window
-    window = glfwCreateWindow(2560, 1440, "Hello OpenGL 11", NULL, NULL);
+    window = glfwCreateWindow(1920, 1080, "Hello OpenGL 11", NULL, NULL);
     glfwMakeContextCurrent(window);
 
     // register the key event callback function
@@ -295,8 +295,7 @@ int main()
 
     //----------------------------------------------------
     // Meshes
-    std::shared_ptr<Mesh> cube = std::make_shared<Mesh>();
-    cube->init("models/cube.obj", blinnShader);
+
 
     glm::mat4 mat = glm::mat4(1.0);
 
@@ -306,7 +305,7 @@ int main()
     meshList.push_back(teapot);
     mat = glm::translate(glm::vec3(-2.0f, 1.0f, 0.0f));
     meshMatList.push_back(mat); // TRS
-    teapot->initSpatial(true, mat);
+    teapot->initSpatial(false, matModelRoot * mat);
     
     std::shared_ptr<Mesh> bunny = std::make_shared<Mesh>();
     bunny->init("models/bunny_normal.obj", texblinnShader);
@@ -314,8 +313,17 @@ int main()
     mat = glm::translate(glm::vec3(1.5f, 1.5f, 0.0f)) *
           glm::scale(glm::vec3(0.005f, 0.005f, 0.005f));
     meshMatList.push_back( mat ); // TRS
-    bunny->initSpatial(true, mat);
+    bunny->initSpatial(false, matModelRoot * mat);
   
+    std::shared_ptr<Mesh> cyber_truck = std::make_shared<Mesh>();
+    cyber_truck->init("models/MyModels/Cyber_truck.obj", blinnShader);   // use blinnShader first (no textures needed)
+    meshList.push_back(cyber_truck);
+    // transform: start simple (no scale yet)
+    glm::mat4 truckMat = glm::translate(glm::vec3(0.0f, 0.5f, 0.0f));
+    glm::scale(glm::vec3(0.0005f, 0.0005f, 0.0005f));
+    meshMatList.push_back(truckMat);
+    // build spatial data (so picking/collision works)
+    cyber_truck->initSpatial(false, matModelRoot * truckMat);
 
   
 
@@ -349,7 +357,7 @@ int main()
                 meshMatList[pickedMeshIndex] = glm::translate(meshMatList[pickedMeshIndex], delta);
 
                 // keep collision/picking correct by updating the spatial structure
-                meshList[pickedMeshIndex]->initSpatial(true, meshMatList[pickedMeshIndex]);
+                meshList[pickedMeshIndex]->initSpatial(false, matModelRoot * meshMatList[pickedMeshIndex]);
 
             }
         }
@@ -393,11 +401,13 @@ int main()
             if (rotated)
             {
                 // keep collision/picking correct after rotation
-                meshList[pickedMeshIndex]->initSpatial(true, meshMatList[pickedMeshIndex]);
+                meshList[pickedMeshIndex]->initSpatial(false, matModelRoot * meshMatList[pickedMeshIndex]);
             }
         }
 
-
+        int fbw, fbh;
+        glfwGetFramebufferSize(window, &fbw, &fbh);
+        glViewport(0, 0, fbw, fbh);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         DrawFloor(matView, matProj, wireframeMode);
@@ -429,24 +439,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if (action == GLFW_PRESS)
     {
-        /*
-        // we don't allow objects to move for picking and collision detection
-        if (mods & GLFW_MOD_CONTROL) {
-            // translation in world space
-            if (GLFW_KEY_LEFT == key) {
-                mat = glm::translate(glm::mat4(1.0f), glm::vec3(transStep, 0.0f, 0.0f));
-                matModelRoot = mat * matModelRoot;
-            } else if (GLFW_KEY_RIGHT == key) {
-                mat = glm::translate(glm::mat4(1.0f), glm::vec3(-transStep, 0.0f, 0.0f));
-            } else if (GLFW_KEY_UP == key) {
-                mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, transStep, 0.0f));
-                matModelRoot = mat * matModelRoot;
-            } else if (GLFW_KEY_DOWN == key) {
-                mat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -transStep, 0.0f));
-            }
-            matModelRoot = mat * matModelRoot;
-        }
-        */
+       
 
         if (GLFW_KEY_M == key)
         {
@@ -474,6 +467,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
         glm::mat4 nextMatView = matView;
         glm::vec3 nextViewPos = viewPos;
+
 
         // camera control
         if (mods & GLFW_MOD_CONTROL) {
@@ -580,6 +574,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 
         // check collision detection
+        
         AABB mybox{ nextViewPos - 0.2f, nextViewPos + 0.2f };
         std::vector<int> out;
 

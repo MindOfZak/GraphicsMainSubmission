@@ -16,7 +16,7 @@ void main()
     //colour_out = vec4(colour_vert, 1.0);
 
     // manually set R G B of the surface colour, here is RED
-    vec3 colour = vec3(1.0, 0.0, 0.0);
+    vec3 colour = vec3(0.75, 0.75, 0.78);
 
     // 1. ambient
     vec3 ambient = 0.05 * colour;
