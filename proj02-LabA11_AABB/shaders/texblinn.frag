@@ -9,7 +9,7 @@ in vec2 texCoord;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
-
+uniform vec3 materialDiffuse;
 // LabA07 diffuse texture map only
 uniform sampler2D textureMap;
 
@@ -18,12 +18,13 @@ uniform sampler2D textureMap;
 
 // LabA11
 uniform bool bPicked = false;
-
+uniform bool hasTexture;
 out vec4 colour_out;
 
 void main()
 {
-    vec3 colour = texture(textureMap, texCoord).rgb;
+    vec3 texCol = hasTexture ? texture(textureMap, texCoord).rgb : vec3(1.0);
+vec3 colour = texCol * materialDiffuse;
 
     if (bPicked)
         colour = 0.6 * colour + 0.4 * vec3(1.0, 1.0, 0.0);

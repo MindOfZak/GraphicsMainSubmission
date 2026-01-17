@@ -6,7 +6,7 @@ in vec3 normal;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
-
+uniform bool bPicked = false;
 out vec4 colour_out;
 
 void main()
@@ -15,8 +15,11 @@ void main()
     //colour_out = vec4(1.0, 0.0, 0.0, 1.0);
     //colour_out = vec4(colour_vert, 1.0);
 
-    // manually set R G B of the surface colour, here is RED
-    vec3 colour = vec3(0.75, 0.75, 0.78);
+    // manually set R G B of the surface colour, here is GREY
+     vec3 colour = vec3(0.75, 0.75, 0.78);
+   
+   if (bPicked)
+        colour = 0.6 * colour + 0.4 * vec3(1.0, 1.0, 0.0);
 
     // 1. ambient
     vec3 ambient = 0.05 * colour;
