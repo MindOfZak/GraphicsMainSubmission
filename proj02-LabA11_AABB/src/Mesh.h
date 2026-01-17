@@ -87,6 +87,7 @@ public:
     void setPicked(bool b) { bPicked = b; }
     
     void draw(glm::mat4 matModel, glm::mat4 matView, glm::mat4 matProj);
+    void setUseMipmaps(bool enabled);
 };
 
 #endif

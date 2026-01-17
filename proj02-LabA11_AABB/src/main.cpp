@@ -43,10 +43,12 @@ GLsizei floorIndexCount = 0;
 
 
 bool wireframeMode = false;
+bool useMipMaps = false; // start OFF to meet "no mipmapping"
 
 int pickedMeshIndex = -1; // which mesh i have clicked (selected)
 float moveSpeed = 2.0f; // units per second
 float lastTime = 0.0f; // for my delta time timing
+float rotateSpeed = 90.0f; // rotate mesh 90 degrees each time
 
 // Initialize shader
 GLuint initShader(std::string pathVert, std::string pathFrag) 
@@ -352,6 +354,50 @@ int main()
             }
         }
 
+        // --- rotate picked object with U/O (Yaw) and Y/H (Pitch) ---
+        if (pickedMeshIndex >= 0)
+        {
+            float rotDeltaDeg = rotateSpeed * deltaTime;
+            float rotRad = glm::radians(rotDeltaDeg);
+
+            bool rotated = false;
+
+            // Yaw (rotate around world Y)
+            if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
+            {
+                meshMatList[pickedMeshIndex] =
+                    glm::rotate(glm::mat4(1.0f), rotRad, glm::vec3(0, 1, 0)) * meshMatList[pickedMeshIndex];
+                rotated = true;
+            }
+            if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+            {
+                meshMatList[pickedMeshIndex] =
+                    glm::rotate(glm::mat4(1.0f), -rotRad, glm::vec3(0, 1, 0)) * meshMatList[pickedMeshIndex];
+                rotated = true;
+            }
+
+            // Pitch (rotate around world X)
+            if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
+            {
+                meshMatList[pickedMeshIndex] =
+                    glm::rotate(glm::mat4(1.0f), rotRad, glm::vec3(1, 0, 0)) * meshMatList[pickedMeshIndex];
+                rotated = true;
+            }
+            if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
+            {
+                meshMatList[pickedMeshIndex] =
+                    glm::rotate(glm::mat4(1.0f), -rotRad, glm::vec3(1, 0, 0)) * meshMatList[pickedMeshIndex];
+                rotated = true;
+            }
+
+            if (rotated)
+            {
+                // keep collision/picking correct after rotation
+                meshList[pickedMeshIndex]->initSpatial(true, meshMatList[pickedMeshIndex]);
+            }
+        }
+
+
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         DrawFloor(matView, matProj, wireframeMode);
@@ -401,6 +447,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             matModelRoot = mat * matModelRoot;
         }
         */
+
+        if (GLFW_KEY_M == key)
+        {
+            useMipMaps = !useMipMaps;
+            std::cout << "Mipmaps: " << (useMipMaps ? "ON" : "OFF") << std::endl;
+
+            // Tell every mesh to update its texture filtering
+            for (auto& m : meshList)
+                m->setUseMipmaps(useMipMaps);
+
+            return;
+        }
+
 
         if (GLFW_KEY_R == key)
         {
@@ -516,6 +575,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
                 else
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);   // Normal fill
             }
+
     
 
 
