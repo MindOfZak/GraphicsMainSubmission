@@ -440,7 +440,7 @@ int main()
     window = glfwCreateWindow(1920, 1080, "Hello OpenGL 11", NULL, NULL);
     glfwMakeContextCurrent(window);
 
-    // 3) Register input callbacks
+    // 3) Register all my inputs like keys, cursor and mouse
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
@@ -652,10 +652,8 @@ int main()
             matView = glm::lookAt(gCamPos, gCamPos + gCamFront, gCamUp);
         }
 
-        // -------------------------
         // Move selected mesh with WASD
-        // (ONLY when RMB is NOT down)
-        // -------------------------
+        // (ONLY when Right mouse button is NOT pressed)
         if (pickedMeshIndex >= 0 && !gRMBDown)
         {
             glm::vec3 delta(0.0f);
